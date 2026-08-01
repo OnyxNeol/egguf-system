@@ -1,0 +1,12 @@
+# === EFE: Bad Extension (Missing #use:) ===
+# === Author: Test ===
+# === Description: This file is intentionally missing a #use: annotation to demonstrate scanner rejection ===
+
+#use:You have access to the EGGUF extension toolkit
+from egguf_ext import params
+
+# This line is missing a #use: annotation!
+params.temperature(0.9)
+
+#use:You generate responses with top_p of 0.95
+params.top_p(0.95)

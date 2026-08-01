@@ -1,0 +1,189 @@
+name: Build EGGUF Executables
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create a GitHub release with the executables'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: gguf2egguf-linux
+            exe_name: gguf2egguf
+          - os: windows-latest
+            artifact_name: gguf2egguf-windows
+            exe_name: gguf2egguf.exe
+          - os: macos-latest
+            artifact_name: gguf2egguf-macos
+            exe_name: gguf2egguf
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install tkinter (Linux only)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y python3-tk
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build executable
+        shell: bash
+        run: |
+          echo "Building on ${{ runner.os }}..."
+          python -m PyInstaller --onefile \
+            --name gguf2egguf \
+            --noconfirm \
+            --clean \
+            --console \
+            --hidden-import tkinter \
+            --hidden-import tkinter.filedialog \
+            --hidden-import tkinter.messagebox \
+            gguf2egguf.py
+
+      - name: Verify executable exists
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ls -la dist/gguf2egguf.exe
+          else
+            ls -la dist/gguf2egguf
+            chmod +x dist/gguf2egguf
+          fi
+
+      - name: Test executable (create mock GGUF + convert)
+        shell: bash
+        run: |
+          echo "Creating mock GGUF for testing..."
+          python -c "
+          import struct, os
+          with open('test_model.gguf', 'wb') as f:
+              f.write(b'GGUF')
+              f.write(struct.pack('<I', 3))
+              f.write(struct.pack('<Q', 2))
+              f.write(struct.pack('<Q', 3))
+              f.write(struct.pack('<Q', 19))
+              f.write(b'general.architecture')
+              f.write(struct.pack('<I', 8))
+              f.write(struct.pack('<Q', 5))
+              f.write(b'llama')
+              f.write(struct.pack('<Q', 12))
+              f.write(b'general.name')
+              f.write(struct.pack('<I', 8))
+              f.write(struct.pack('<Q', 10))
+              f.write(b'GHTest')
+              f.write(struct.pack('<Q', 17))
+              f.write(b'general.file_type')
+              f.write(struct.pack('<I', 4))
+              f.write(struct.pack('<I', 7))
+              f.write(b'\x00' * 256)
+          print('Mock GGUF created')
+          "
+
+          echo "Running converter..."
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ./dist/gguf2egguf.exe test_model.gguf
+          else
+            ./dist/gguf2egguf test_model.gguf
+          fi
+
+          echo "Verifying EGGUF was created..."
+          if [ -f "test_model.egguf" ]; then
+            echo "[OK] EGGUF file created successfully"
+            ls -la test_model.egguf
+          else
+            echo "[ERROR] EGGUF file was not created!"
+            exit 1
+          fi
+
+      - name: Upload executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.exe_name }}
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure
+        run: find artifacts -type f -ls
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp artifacts/gguf2egguf-linux/gguf2egguf release/gguf2egguf-linux
+          cp artifacts/gguf2egguf-windows/gguf2egguf.exe release/gguf2egguf-windows.exe
+          cp artifacts/gguf2egguf-macos/gguf2egguf release/gguf2egguf-macos
+          chmod +x release/gguf2egguf-linux release/gguf2egguf-macos
+          ls -la release/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || format('release-{0}', github.run_number) }}
+          name: EGGUF Converter ${{ github.ref_name || format('v{0}', github.run_number) }}
+          body: |
+            ## EGGUF Converter — Multi-Platform Build
+
+            ### Downloads
+            - **Windows**: `gguf2egguf-windows.exe`
+            - **macOS**: `gguf2egguf-macos`
+            - **Linux**: `gguf2egguf-linux`
+
+            ### Usage
+            ```bash
+            # Windows
+            gguf2egguf-windows.exe model.gguf
+
+            # macOS / Linux
+            ./gguf2egguf-macos model.gguf
+            ./gguf2egguf-linux model.gguf
+            ```
+
+            The converter adds the `#use:` system framework automatically.
+            After conversion, open the `.egguf` file and apply EFE extensions.
+          files: |
+            release/gguf2egguf-windows.exe
+            release/gguf2egguf-macos
+            release/gguf2egguf-linux
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,4 @@
+# Dependencies (all standard library — no pip install needed for core functionality)
+# PyInstaller is only needed to build executables:
+#   pip install pyinstaller
+pyinstaller>=6.0

@@ -1,0 +1,18 @@
+# === EFE: Smart Search Assistant ===
+# === Author: EGGUF Team ===
+# === Description: Adds web search capability so the model can look up unknown information ===
+
+#use:You have access to the EGGUF extension toolkit for behavior and generation parameters
+from egguf_ext import behavior, params
+
+#use:Use the webapi as an external knowledge tool so when you can't understand something or is not in your knowledge you can web search it
+webapi:brave_kjfkdjfhgishgifdbgkgrsjbkughkgjbokt
+
+#use:You always cite your sources when using web search results
+behavior.always("cite sources when using web search results")
+
+#use:You always clearly distinguish between your built-in knowledge and information you found through web search
+behavior.always("distinguish between built-in knowledge and web-searched information")
+
+#use:You generate responses with moderate temperature of 0.5 for a balance of accuracy and natural language
+params.temperature(0.5)

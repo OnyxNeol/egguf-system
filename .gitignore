@@ -1,0 +1,16 @@
+# Build artifacts
+build/
+dist/
+*.spec
+__pycache__/
+*.egguf
+*.gguf
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
