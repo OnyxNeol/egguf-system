@@ -106,27 +106,36 @@ def scan_efe(file_path: str) -> ScanResult:
 
     parsed = []
     pending_use = None
+    bracket_depth = 0  # Track multi-line expressions: (), [], {}
 
     for i, line in enumerate(raw_lines, 1):
         stripped = line.strip()
 
         if not stripped:
-            parsed.append((i, line, "blank", None))
+            if bracket_depth == 0:
+                parsed.append((i, line, "blank", None))
             continue
 
         if stripped.startswith("#use:"):
-            use_text = stripped[5:].strip()
-            parsed.append((i, line, "use", use_text))
-            result.use_comments += 1
-            pending_use = use_text
+            if bracket_depth == 0:
+                use_text = stripped[5:].strip()
+                parsed.append((i, line, "use", use_text))
+                result.use_comments += 1
+                pending_use = use_text
             continue
 
         if stripped.startswith("#"):
-            parsed.append((i, line, "header", None))
-            result.header_lines += 1
+            if bracket_depth == 0:
+                parsed.append((i, line, "header", None))
+                result.header_lines += 1
             continue
 
-        is_directive = any(stripped.startswith(prefix) for prefix in DIRECTIVE_PREFIXES)
+        # Track bracket depth for multi-line expressions
+        open_brackets = stripped.count("(") + stripped.count("[") + stripped.count("{")
+        close_brackets = stripped.count(")") + stripped.count("]") + stripped.count("}")
+
+        is_directive = (bracket_depth == 0 and 
+                       any(stripped.startswith(prefix) for prefix in DIRECTIVE_PREFIXES))
 
         if is_directive:
             colon_idx = stripped.index(":")
@@ -139,6 +148,18 @@ def scan_efe(file_path: str) -> ScanResult:
             }))
             pending_use = None
             result.code_lines += 1
+            # Update bracket depth in case directive has brackets
+            bracket_depth += open_brackets - close_brackets
+            continue
+
+        if bracket_depth > 0:
+            # We're inside a multi-line expression — this is a continuation line
+            # Don't require #use: for continuation lines
+            parsed.append((i, stripped, "continuation", {
+                "use": None,
+                "is_continuation": True
+            }))
+            bracket_depth += open_brackets - close_brackets
             continue
 
         use_desc = pending_use
@@ -150,10 +171,11 @@ def scan_efe(file_path: str) -> ScanResult:
         }))
         pending_use = None
         result.code_lines += 1
+        bracket_depth += open_brackets - close_brackets
 
     for idx, (line_num, text, category, data) in enumerate(parsed):
         if category not in ("code", "directive"):
-            continue
+            continue  # skip blank, use, header, and continuation lines
 
         use_before = data["use"] if isinstance(data, dict) and data.get("use") else None
 

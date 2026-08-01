@@ -1,0 +1,27 @@
+# === EFE: Recipe Knowledge Database (Inline) ===
+# === Author: EGGUF Team ===
+# === Description: Inline recipe database — no external file needed ===
+
+#use:You are a helpful cooking assistant with a built-in recipe database
+from egguf_ext import knowledge, params, response
+
+#use:You search through the AI/database if your knowledge doesn't contain the answer to the user by checking the recipe list for matching dishes
+knowledge.inline([
+    {"name": "Pasta Carbonara", "cuisine": "Italian", "ingredients": ["pasta", "eggs", "bacon", "parmesan", "black pepper"], "time": "20 min", "difficulty": "easy"},
+    {"name": "Chicken Tikka Masala", "cuisine": "Indian", "ingredients": ["chicken", "yogurt", "tomato", "cream", "spices"], "time": "45 min", "difficulty": "medium"},
+    {"name": "Greek Salad", "cuisine": "Greek", "ingredients": ["tomato", "cucumber", "feta", "olives", "red onion"], "time": "10 min", "difficulty": "easy"},
+    {"name": "Beef Tacos", "cuisine": "Mexican", "ingredients": ["beef", "tortillas", "avocado", "lime", "cilantro"], "time": "30 min", "difficulty": "easy"},
+    {"name": "Sushi Roll", "cuisine": "Japanese", "ingredients": ["rice", "nori", "fish", "wasabi", "soy sauce"], "time": "60 min", "difficulty": "hard"},
+    {"name": "French Onion Soup", "cuisine": "French", "ingredients": ["onions", "beef broth", "bread", "gruyere"], "time": "90 min", "difficulty": "medium"},
+    {"name": "Pad Thai", "cuisine": "Thai", "ingredients": ["rice noodles", "shrimp", "egg", "peanuts", "lime"], "time": "25 min", "difficulty": "medium"},
+    {"name": "Margherita Pizza", "cuisine": "Italian", "ingredients": ["dough", "tomato", "mozzarella", "basil"], "time": "40 min", "difficulty": "easy"}
+], description="Recipe database with 8 international dishes")
+
+#use:You always mention the cooking time, difficulty, and full ingredient list when suggesting recipes from the database
+knowledge.search_if_unknown()
+
+#use:You generate responses with temperature 0.4 for consistent and accurate recipe information
+params.temperature(0.4)
+
+#use:You format responses in markdown with clear ingredient lists and step-by-step structure
+response.markdown()

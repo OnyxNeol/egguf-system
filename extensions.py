@@ -92,6 +92,7 @@ EXTENSION_TYPE_DISPLAY = {
     "capability_unlock": "Capability Unlock",
     "webapi": "External Web API",
     "model_override": "Model Parameter Override",
+    "knowledge_database": "Knowledge Database (Searchable)",
 }
 
 

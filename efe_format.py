@@ -134,7 +134,8 @@ def _execute_efe(path: str, scan_result: ScanResult):
     system_api = _SystemAPI(runtime)
     params_api = _ParamsAPI(runtime)
     response_api = _ResponseAPI(runtime)
-    knowledge_api = _KnowledgeAPI(runtime)
+    efe_dir = os.path.dirname(os.path.abspath(path))
+    knowledge_api = _KnowledgeAPI(runtime, efe_dir)
     behavior_api = _BehaviorAPI(runtime)
     safety_api = _SafetyAPI(runtime)
     chat_api = _ChatAPI(runtime)
@@ -361,9 +362,30 @@ class _ResponseAPI:
         return self._rt.response_format("text")
 
 class _KnowledgeAPI:
-    def __init__(self, rt): self._rt = rt
+    def __init__(self, rt, efe_dir="."):
+        self._rt = rt
+        self._efe_dir = efe_dir
     def inject(self, knowledge, topic="", priority="medium"):
         return self._rt.knowledge_inject(knowledge, topic, priority)
+    def database(self, file_path, format="", description=""):
+        """Load a database file (JSON/CSV/SQLite/text) for the model to search through."""
+        return self._rt.knowledge_database(file_path, format, description, self._efe_dir)
+    def search_if_unknown(self, instruction=""):
+        """Tell the model to search the database when its knowledge isn't enough."""
+        return self._rt.knowledge_search_if_unknown(instruction)
+    def embed_context(self, max_chars=8000):
+        """Convert loaded databases to text and inject into the model's context."""
+        return self._rt.knowledge_embed_context(max_chars)
+    def inline(self, data, description=""):
+        """Use inline JSON data as a knowledge database (no file needed)."""
+        return self._rt._add_config("knowledge_database", "Knowledge Database (inline)", {
+            "file_path": "<inline>",
+            "format": "json",
+            "data": data,
+            "description": description,
+            "record_count": len(data) if isinstance(data, list) else 1,
+            "search_instruction": "Search through the database if your knowledge doesn't contain the answer",
+        })
 
 class _BehaviorAPI:
     def __init__(self, rt): self._rt = rt

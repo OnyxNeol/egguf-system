@@ -173,6 +173,187 @@ class ExtensionRuntime:
             "knowledge": knowledge, "topic": topic, "priority": priority
         })
 
+    def knowledge_database(self, file_path: str, format: str = "", description: str = "",
+                           efe_dir: str = "."):
+        """Load a database file and store it as a searchable knowledge extension.
+
+        Supports JSON, CSV, SQLite, and text files.
+        The database is embedded in the EGGUF extension so the model
+        can search through it when its own knowledge isn't enough.
+
+        The #use: annotation on the knowledge.database() line should
+        instruct the model to search the database when needed.
+        """
+        import os as _os
+
+        # Resolve path relative to EFE file directory
+        full_path = file_path
+        if not _os.path.isabs(full_path):
+            full_path = _os.path.join(efe_dir, file_path)
+
+        if not _os.path.exists(full_path):
+            # Store a reference even if file not found (for portable EFE files)
+            return self._add_config("knowledge_database",
+                f"Knowledge Database: {_os.path.basename(file_path)}", {
+                    "file_path": file_path,
+                    "format": format or self._detect_db_format(file_path),
+                    "data": None,
+                    "description": description,
+                    "error": f"Database file not found: {full_path}",
+                    "search_instruction": "Search through the database if your knowledge doesn't contain the answer",
+                })
+
+        # Detect format from extension
+        if not format:
+            format = self._detect_db_format(file_path)
+
+        # Load and parse the database
+        data = self._load_database(full_path, format)
+
+        return self._add_config("knowledge_database",
+            f"Knowledge Database: {_os.path.basename(file_path)}", {
+                "file_path": file_path,
+                "format": format,
+                "data": data,
+                "description": description,
+                "record_count": len(data) if isinstance(data, list) else 1,
+                "search_instruction": "Search through the database if your knowledge doesn't contain the answer",
+            })
+
+    def knowledge_search_if_unknown(self, instruction: str = ""):
+        """Add a system prompt instruction telling the model to search the database
+        when its built-in knowledge doesn't contain the answer."""
+        instr = instruction or (
+            "Search through the AI/database if your knowledge doesn't contain "
+            "the answer to the user. When you search the database, cite which "
+            "record the answer came from."
+        )
+        return self._add_config("knowledge_inject", "Database Search Instruction", {
+            "knowledge": instr, "topic": "database_search", "priority": "high"
+        })
+
+    def knowledge_embed_context(self, max_chars: int = 8000):
+        """Convert loaded databases to text context for the system prompt.
+        This injects the database content directly into the model's context window
+        so it can search through it at inference time."""
+        # Find all knowledge_database configs and convert them to text
+        contexts = []
+        for c in self.configs:
+            if c.get("ext_type") == "knowledge_database":
+                data = c.get("data", {}).get("data")
+                if data is None:
+                    continue
+                text = self._database_to_text(data, c["data"].get("format", "json"))
+                if len(text) > max_chars:
+                    text = text[:max_chars] + "\n... (truncated)"
+                contexts.append({
+                    "source": c["name"],
+                    "text": text,
+                })
+
+        if contexts:
+            full_context = "\n\n".join(
+                f"=== {ctx['source']} ===\n{ctx['text']}" for ctx in contexts
+            )
+            return self._add_config("knowledge_inject", "Database Context (Embedded)", {
+                "knowledge": full_context,
+                "topic": "embedded_database",
+                "priority": "high",
+            })
+        return None
+
+    def _detect_db_format(self, path: str) -> str:
+        """Detect database format from file extension."""
+        ext = path.rsplit(".", 1)[-1].lower() if "." in path else ""
+        return {
+            "json": "json",
+            "csv": "csv",
+            "tsv": "csv",
+            "txt": "text",
+            "md": "text",
+            "db": "sqlite",
+            "sqlite": "sqlite",
+            "sqlite3": "sqlite",
+        }.get(ext, "json")
+
+    def _load_database(self, path: str, format: str):
+        """Load and parse a database file based on its format."""
+        import json as _json
+        import csv as _csv
+
+        if format == "json":
+            with open(path, "r", encoding="utf-8") as f:
+                return _json.load(f)
+
+        elif format == "csv":
+            records = []
+            with open(path, "r", encoding="utf-8", newline="") as f:
+                reader = _csv.DictReader(f)
+                for row in reader:
+                    records.append(dict(row))
+            return records
+
+        elif format == "text":
+            with open(path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            return [{"line": i+1, "content": line.strip()} for line in lines if line.strip()]
+
+        elif format == "sqlite":
+            import sqlite3 as _sqlite3
+            conn = _sqlite3.connect(path)
+            cursor = conn.cursor()
+            # Get all tables
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = [row[0] for row in cursor.fetchall()]
+            result = {}
+            for table in tables:
+                cursor.execute(f"SELECT * FROM {table}")
+                columns = [desc[0] for desc in cursor.description]
+                rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+                result[table] = rows
+            conn.close()
+            return result
+
+        else:
+            # Fallback: try JSON, then text
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return _json.load(f)
+            except Exception:
+                with open(path, "r", encoding="utf-8") as f:
+                    return [{"content": f.read()}]
+
+    def _database_to_text(self, data, format: str = "json") -> str:
+        """Convert parsed database data to searchable text."""
+        import json as _json
+
+        if isinstance(data, list):
+            lines = []
+            for i, record in enumerate(data):
+                if isinstance(record, dict):
+                    fields = " | ".join(f"{k}: {v}" for k, v in record.items())
+                    lines.append(f"Record {i+1}: {fields}")
+                else:
+                    lines.append(str(record))
+            return "\n".join(lines)
+        elif isinstance(data, dict):
+            # Could be SQLite (table_name → records) or a single JSON object
+            lines = []
+            for key, value in data.items():
+                if isinstance(value, list):
+                    lines.append(f"\n=== Table: {key} ===")
+                    for i, record in enumerate(value):
+                        if isinstance(record, dict):
+                            fields = " | ".join(f"{k}: {v}" for k, v in record.items())
+                            lines.append(f"  Record {i+1}: {fields}")
+                        else:
+                            lines.append(f"  {record}")
+                else:
+                    lines.append(f"{key}: {value}")
+            return "\n".join(lines)
+        else:
+            return str(data)
+
     def behavior_mod(self, rules: list, strictness: str = "moderate"):
         """Add behavior modification rules."""
         return self._add_config("behavior_mod", "Behavior Modification", {

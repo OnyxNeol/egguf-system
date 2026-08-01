@@ -121,3 +121,66 @@ egguf-system/
 ## License
 
 MIT
+
+## Knowledge Database (Train with Your Data)
+
+EGGUF supports embedding databases into the model so it can search through them when its built-in knowledge isn't enough. This is done through the `knowledge` API in EFE files.
+
+### Supported Database Formats
+
+| Format | Extensions | Description |
+|--------|-----------|-------------|
+| JSON | `.json` | Parsed as JSON objects/arrays |
+| CSV | `.csv`, `.tsv` | Parsed into records (dict per row) |
+| SQLite | `.db`, `.sqlite`, `.sqlite3` | All tables extracted as records |
+| Text | `.txt`, `.md` | Parsed line-by-line as records |
+
+### Loading a Database File
+
+```python
+# === EFE: My Knowledge Base ===
+
+#use:You are a support assistant with access to the product database
+from egguf_ext import knowledge
+
+#use:You search through the AI/database if your knowledge doesn't contain the answer to the user
+knowledge.database("products.json", description="Product catalog with prices and stock")
+
+#use:You always cite which database record the answer came from
+knowledge.search_if_unknown()
+```
+
+### Inline Database (No File Needed)
+
+```python
+# === EFE: Quick Knowledge ===
+
+#use:You are a recipe assistant with a built-in recipe database
+from egguf_ext import knowledge
+
+#use:You search through the AI/database if your knowledge doesn't contain the answer to the user
+knowledge.inline([
+    {"name": "Pasta Carbonara", "ingredients": ["pasta", "eggs", "bacon"], "time": "20 min"},
+    {"name": "Greek Salad", "ingredients": ["tomato", "feta", "olives"], "time": "10 min"}
+], description="Recipe database")
+
+#use:You always mention cooking time and ingredients when suggesting recipes
+knowledge.search_if_unknown()
+```
+
+### How It Works
+
+1. **`knowledge.database("file.json")`** — Loads and parses the file (JSON/CSV/SQLite/text)
+2. **`knowledge.search_if_unknown()`** — Adds the "search if you don't know" instruction to the system prompt
+3. **`knowledge.embed_context()`** — Converts the database to text and injects it into the model's context
+4. **`knowledge.inline([...])`** — Use inline JSON data directly (no file needed)
+
+The database data is embedded directly in the EGGUF extension, so the model can search through it at inference time. The `#use:` annotation on each `knowledge.*()` call becomes part of the system prompt, telling the model how to use the database.
+
+### Sample Database Files
+
+| Sample | Description |
+|--------|-------------|
+| `technova_support.efe` | Product catalog (JSON) with 15 products, support tickets, company info |
+| `recipe_database.efe` | Inline recipe database (8 dishes, no external file needed) |
+| `technova_database.json` | Sample JSON database for the TechNova support extension |

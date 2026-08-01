@@ -1,0 +1,36 @@
+{
+  "products": [
+    {"id": 1, "name": "Quantum Headphones", "price": 299, "stock": 45, "category": "audio", "description": "Noise-canceling wireless headphones with 40h battery life"},
+    {"id": 2, "name": "Nebula Tablet Pro", "price": 599, "stock": 12, "category": "tablets", "description": "12-inch OLED tablet with stylus support"},
+    {"id": 3, "name": "Pulse Smartwatch", "price": 199, "stock": 78, "category": "wearables", "description": "Fitness tracking smartwatch with ECG sensor"},
+    {"id": 4, "name": "Vortex Speaker", "price": 149, "stock": 120, "category": "audio", "description": "Portable Bluetooth speaker with 360-degree sound"},
+    {"id": 5, "name": "Eclipse Laptop 15", "price": 1299, "stock": 8, "category": "laptops", "description": "15-inch laptop with 32GB RAM and 1TB SSD"},
+    {"id": 6, "name": "Aurora Phone X", "price": 899, "stock": 34, "category": "phones", "description": "6.7-inch flagship phone with 200MP camera"},
+    {"id": 7, "name": "Zenith Earbuds", "price": 129, "stock": 200, "category": "audio", "description": "True wireless earbuds with ANC and wireless charging"},
+    {"id": 8, "name": "Fusion Charger", "price": 49, "stock": 500, "category": "accessories", "description": "100W GaN USB-C charger with 4 ports"},
+    {"id": 9, "name": "Cascade Keyboard", "price": 89, "stock": 150, "category": "accessories", "description": "Mechanical keyboard with hot-swappable switches"},
+    {"id": 10, "name": "Prism Monitor 27", "price": 449, "stock": 23, "category": "displays", "description": "27-inch 4K monitor with USB-C docking"},
+    {"id": 11, "name": "Echo Microphone", "price": 179, "stock": 60, "category": "audio", "description": "USB condenser microphone with shock mount"},
+    {"id": 12, "name": "Drift Mouse Pro", "price": 79, "stock": 300, "category": "accessories", "description": "Wireless ergonomic mouse with 8 programmable buttons"},
+    {"id": 13, "name": "Tempest Router", "price": 199, "stock": 45, "category": "networking", "description": "Wi-Fi 7 mesh router with 10Gbps WAN"},
+    {"id": 14, "name": "Glacier Cooling Pad", "price": 39, "stock": 250, "category": "accessories", "description": "Laptop cooling pad with RGB and 5 fans"},
+    {"id": 15, "name": "Spectra Webcam 4K", "price": 129, "stock": 90, "category": "accessories", "description": "4K webcam with auto-framing and HDR"}
+  ],
+  "support_tickets": [
+    {"id": "T-001", "product": "Quantum Headphones", "issue": "Left ear cup not working", "status": "open", "priority": "high"},
+    {"id": "T-002", "product": "Nebula Tablet Pro", "issue": "Screen flickering after update", "status": "resolved", "priority": "medium"},
+    {"id": "T-003", "product": "Pulse Smartwatch", "issue": "Battery drains too fast", "status": "open", "priority": "medium"},
+    {"id": "T-004", "product": "Eclipse Laptop 15", "issue": "Keyboard backlight not working", "status": "escalated", "priority": "high"},
+    {"id": "T-005", "product": "Aurora Phone X", "issue": "Camera app crashes", "status": "resolved", "priority": "low"}
+  ],
+  "company_info": {
+    "name": "TechNova Inc.",
+    "founded": "2019",
+    "headquarters": "San Francisco, CA",
+    "employees": 450,
+    "support_email": "support@technova.example",
+    "support_hours": "Mon-Fri 9AM-6PM PST",
+    "return_policy": "30-day money-back guarantee on all products",
+    "warranty": "2-year limited warranty on electronics, 1-year on accessories"
+  }
+}
