@@ -23,6 +23,24 @@ import os
 
 
 def main():
+    # Handle double-click file opening (file path passed as first arg)
+    # On all platforms, double-clicking a .egguf or .efe file passes the path
+    if len(sys.argv) >= 2:
+        arg = sys.argv[1]
+        # If the first arg is a file path (not a command), open it
+        if os.path.isfile(arg) or (not arg.startswith("-") and "." in arg and arg.lower() not in ("help", "--help", "-h")):
+            ext = os.path.splitext(arg)[1].lower()
+            if ext == ".egguf":
+                _open_gui(arg)
+                return
+            elif ext == ".efe":
+                _open_efe_file(arg)
+                return
+            elif ext == ".gguf":
+                # Double-clicking a GGUF offers conversion
+                _open_gguf_file(arg)
+                return
+
     if len(sys.argv) < 2:
         _print_usage()
         return
@@ -142,18 +160,85 @@ Examples:
 """)
 
 
+def _open_efe_file(efe_path: str):
+    """Open an EFE file — scan it and offer to apply or view."""
+    from scanner import scan_efe, format_scan_report
+    print(f"Scanning EFE file: {efe_path}")
+    print()
+    result = scan_efe(efe_path)
+    report = format_scan_report(result)
+    print(report)
+
+    if result.accepted:
+        print()
+        print("This EFE file is valid and can be applied to an EGGUF model.")
+        print(f"Use: egguf apply <model.egguf> {efe_path}")
+        # Try GUI preview
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showinfo("EFE File Valid",
+                f"Scanned: {os.path.basename(efe_path)}\n\n"
+                f"Code lines: {result.code_lines}\n"
+                f"#use: annotations: {result.use_comments}\n\n"
+                f"System prompt extracted successfully.\n"
+                f"Apply with: egguf apply <model.egguf> {efe_path}")
+            root.destroy()
+        except Exception:
+            pass
+
+def _open_gguf_file(gguf_path: str):
+    """Open a GGUF file — offer to convert to EGGUF."""
+    print(f"GGUF file detected: {gguf_path}")
+    print()
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        result = messagebox.askyesno("Convert to EGGUF?",
+            f"GGUF file: {os.path.basename(gguf_path)}\n\n"
+            f"Convert to EGGUF format?\n"
+            f"This will create an EGGUF file that can be extended with EFE files.")
+        if result:
+            from converter import convert_gguf_to_egguf
+            convert_gguf_to_egguf(gguf_path)
+            messagebox.showinfo("Done", "Conversion complete!")
+        root.destroy()
+    except Exception:
+        print("Convert with: egguf convert " + gguf_path)
+
 def _open_gui(egguf_path: str):
-    """Open the EGGUF GUI."""
-    from gui import EGGUFApp
-    app = EGGUFApp(egguf_path)
-    app.run()
+    """Open the EGGUF GUI. Falls back to CLI info if tkinter not available."""
+    try:
+        from gui import EGGUFApp
+        app = EGGUFApp(egguf_path)
+        app.run()
+    except ImportError:
+        # tkinter not available (headless) — show CLI info instead
+        print(f"\nEGGUF file: {egguf_path}")
+        print("GUI not available (tkinter missing). Showing file info:\n")
+        from converter import info_egguf
+        info_egguf(egguf_path)
+        print("\nTo use the GUI, install tkinter:")
+        print("  Linux: sudo apt install python3-tk")
+        print("  macOS: brew install python-tk")
+        print("  Windows: included with Python")
 
 
 def _open_efe_creator():
-    """Open the EFE Creator GUI."""
-    from efe_creator import EFECreator
-    creator = EFECreator()
-    creator.win.mainloop()
+    """Open the EFE Creator GUI. Falls back to CLI if tkinter not available."""
+    try:
+        from efe_creator import EFECreator
+        creator = EFECreator()
+        creator.win.mainloop()
+    except ImportError:
+        print("GUI not available (tkinter missing).")
+        print("Create EFE files manually — see sample_extensions/ for examples.")
+        print("EFE files are Python code with #use: annotations.")
+        print("Install tkinter: sudo apt install python3-tk")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-egguf">
+    <comment>Extensible GGUF file</comment>
+    <comment xml:lang="en">Extensible GGUF file — AI model with EFE extension support</comment>
+    <glob pattern="*.egguf"/>
+    <magic priority="50">
+      <match type="string" offset="0" value="EGGUF"/>
+    </magic>
+  </mime-type>
+  <mime-type type="application/x-efe">
+    <comment>Extensions For EGGUF</comment>
+    <comment xml:lang="en">Extensions For EGGUF — Python-based extension package</comment>
+    <glob pattern="*.efe"/>
+  </mime-type>
+</mime-info>

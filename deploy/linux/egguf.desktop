@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=EGGUF
+GenericName=Extensible GGUF System
+Comment=Open and extend AI models with EFE extensions
+Exec=egguf %f
+Terminal=false
+Categories=Development;ArtificialIntelligence;Utility;
+Keywords=GGUF;AI;Model;Extension;EFE;
+MimeType=application/x-egguf;application/x-efe;
+NoDisplay=false
+StartupNotify=true

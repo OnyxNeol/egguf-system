@@ -1,0 +1,9 @@
+application/x-egguf
+  Extension: egguf
+  Description: Extensible GGUF file — AI model with EFE extension support
+  Type: application/x-egguf
+
+application/x-efe
+  Extension: efe
+  Description: Extensions For EGGUF — Python-based extension package
+  Type: application/x-efe
