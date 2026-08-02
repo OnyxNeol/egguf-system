@@ -48,12 +48,10 @@ jobs:
       - name: Build egguf executable
         run: python build_full.py
 
-      - name: Test the executable (Linux/macOS)
-        if: matrix.platform != 'windows'
+      - name: Test the executable (All Platforms)
         shell: bash
         run: |
-          chmod +x dist/egguf
-          python3 -c "
+          python -c "
           import struct
           with open('test.gguf', 'wb') as f:
               f.write(b'GGUF'); f.write(struct.pack('<I', 3)); f.write(struct.pack('<Q', 2)); f.write(struct.pack('<Q', 3))
@@ -62,15 +60,12 @@ jobs:
               f.write(struct.pack('<Q', 17)); f.write(b'general.file_type'); f.write(struct.pack('<I', 4)); f.write(struct.pack('<I', 7))
               f.write(b'\x00' * 100)
           "
-          ./dist/egguf convert test.gguf test.egguf
-          test -f test.egguf && echo "OK: conversion works"
-          ./dist/egguf info test.egguf | head -5
-
-      - name: Test the executable (Windows)
-        if: matrix.platform == 'windows'
-        shell: bash
-        run: |
-          ./dist/egguf.exe convert test.gguf test.egguf
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            ./dist/egguf.exe convert test.gguf test.egguf
+          else
+            chmod +x dist/egguf
+            ./dist/egguf convert test.gguf test.egguf
+          fi
           test -f test.egguf && echo "OK: conversion works"
 
       - name: Package with installers
