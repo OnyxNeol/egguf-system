@@ -99,7 +99,7 @@ python build_exe.py --clean
 ## Publishing to Registry
 
 ```bash
-# Windows (registers in HKEY_CLASSES_ROOT)
+# Windows (registers in HKEY_CLASSES_ROOT — run as Administrator)
 python publish_registry.py
 
 # With custom paths
@@ -108,8 +108,32 @@ python publish_registry.py --python "C:\Python311\python.exe" --egguf-dir "C:\EG
 
 Registers:
 - `.egguf` → EGGUF Model File (Open, Apply EFE, Export, Info)
-- `.efe` → EFE Extension File (Open Creator, Scan)
+- `.efe` → EFE Extension File (Open Creator, Scan, Edit)
 - `.gguf` → "Convert to EGGUF" context menu option
+- `.efe` → **New > EFE Extension File** in right-click New menu
+
+### Creating EFE Files on Windows
+
+After running `publish_registry.py`, you can create `.efe` files two ways:
+
+**Method 1 — Right-click New Menu:**
+1. Right-click on your desktop or in any folder
+2. Select **New → EFE Extension File**
+3. A new `.efe` file is created from the template (with starter `#use:` headers)
+4. Rename it and start editing — it's just a Python text file
+
+**Method 2 — Just name it:**
+1. Create any new file
+2. Name it `my_extension.efe`
+3. Windows recognizes the type and shows the EFE icon
+4. Open it in any text editor and add `#use:` annotations
+
+**Method 3 — From the EFE Creator GUI:**
+```bash
+python main.py create-efe
+```
+
+The `.efe` file is just a plain Python file with `#use:` comments. Any text editor works.
 
 ## Project Structure
 
