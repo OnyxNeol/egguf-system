@@ -24,6 +24,30 @@ python main.py create-efe
 python publish_registry.py
 ```
 
+
+## Marketplace 🛒
+
+Browse and download community-created EFE extensions from the **EFE Market**:
+
+➡️ **[EFE Market](https://github.com/OnyxNeol/EFE-Market)** — Community marketplace for EFE files
+
+Submit your own EFE extensions, browse by category (creative, coding, knowledge, roleplay, tools), and share with the community. All submissions are auto-validated by the EGGUF scanner.
+
+### Using Marketplace Extensions
+
+```bash
+# Download an EFE from the market, then apply it
+python main.py apply model.egguf downloaded_extension.efe
+```
+
+### Contributing
+
+1. Fork the [EFE Market repo](https://github.com/OnyxNeol/EFE-Market)
+2. Add your `.efe` file to the appropriate category
+3. Open a Pull Request — it's auto-validated
+
+See [CONTRIBUTING.md](https://github.com/OnyxNeol/EFE-Market/blob/main/CONTRIBUTING.md) for details.
+
 ## File Types
 
 | Extension | Name | Description |
