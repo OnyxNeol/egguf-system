@@ -16,9 +16,11 @@ Usage:
   python publish_registry.py --python "C:\\Python311\\python.exe" --egguf-dir "C:\\EGGUF"
 
 After running on Windows, .egguf and .efe files will have:
-  - Custom icons
+  - Custom file type names shown in Explorer
   - Right-click context menu options (Open, Apply EFE, Export, Info, Scan)
   - "Convert to EGGUF" option on .gguf files
+  - "New > EFE Extension File" in the right-click New menu (creates from template)
+  - .efe files work like any standard file type — just name it "something.efe"
 """
 
 import os
@@ -26,6 +28,7 @@ import sys
 import platform
 import argparse
 import subprocess
+import shutil
 
 
 def main():
@@ -79,6 +82,9 @@ def main():
     print("  .efe:    Open Creator | Scan (Validate #use:)")
     print("  .gguf:   Convert to EGGUF")
     print()
+    print("New menu:")
+    print("  Right-click → New → EFE Extension File  (creates from template)")
+    print()
 
 
 # ═══════════════════════════════════════════════════════════
@@ -98,6 +104,24 @@ def _publish_windows(python_exe, egguf_dir, main_script, converter_script):
     ms = main_script.replace("/", "\\")
     cs = converter_script.replace("/", "\\")
 
+    # ─── Copy EFE template to Windows ShellNew folder ───
+    shellnew_dir = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "ShellNew")
+    template_src = os.path.join(egguf_dir, "efe_template.efe")
+    template_dst = os.path.join(shellnew_dir, "efe_template.efe")
+
+    try:
+        os.makedirs(shellnew_dir, exist_ok=True)
+        shutil.copy2(template_src, template_dst)
+        print(f"  [OK] EFE template copied to: {template_dst}")
+    except PermissionError:
+        print(f"  [WARN] Cannot copy template to {shellnew_dir} — run as Administrator")
+        print(f"         ShellNew will use NullFile (empty file) instead")
+        template_dst = None
+    except Exception as e:
+        print(f"  [WARN] Template copy failed: {e}")
+        template_dst = None
+
+    # ─── Registry entries ───
     registrations = [
         # ─── .egguf file type ───
         (r".egguf", "", "EGGUFFile"),
@@ -136,20 +160,41 @@ def _publish_windows(python_exe, egguf_dir, main_script, converter_script):
         (r"EFEFile\shell\scan", "", "Scan (Validate #use:)"),
         (r"EFEFile\shell\scan\command", "",
          f'"{py}" "{ms}" scan "%1"'),
+        # Edit (open in default text editor — .efe files are just Python text)
+        (r"EFEFile\shell\edit", "", "Edit"),
+        (r"EFEFile\shell\edit\command", "",
+         f'notepad "%1"'),
 
-        # ─── .gguf → Convert to EGGUF ───
+        # ─── .efe ShellNew (New > EFE Extension File) ───
+        # This makes .efe appear in the right-click "New" menu
+        (r".efe\ShellNew", "NullFile", ""),
+    ]
+
+    # If template was copied, use FileName instead of NullFile for a richer template
+    if template_dst:
+        # Remove the NullFile entry and add FileName instead
+        registrations = [
+            (path, name, val) for path, name, val in registrations
+            if path != r".efe\ShellNew"
+        ]
+        registrations.append((r".efe\ShellNew", "FileName", "efe_template.efe"))
+
+    # ─── .egguf ShellNew (New > EGGUF Model File — empty file) ───
+    # Not adding ShellNew for .egguf since it's a binary format you convert from GGUF
+
+    # ─── .gguf → Convert to EGGUF ───
+    registrations.extend([
         (r".gguf", "", "GGUFFile"),
         (r"GGUFFile\shell\convertToEGGUF", "", "Convert to EGGUF..."),
         (r"GGUFFile\shell\convertToEGGUF\command", "",
          f'"{py}" "{cs}" "%1"'),
-    ]
+    ])
 
     success = 0
     failed = 0
 
     for key_path, value_name, value_data in registrations:
         try:
-            # Split into parent key and subkey
             parts = key_path.rsplit("\\", 1)
             if len(parts) == 2:
                 parent, subkey = parts
@@ -245,6 +290,18 @@ Categories=Development;AI;
 """)
     print(f"  [OK] GGUF converter: {gguf_desktop}")
 
+    # EFE template for Linux — copy to templates directory
+    templates_dir = os.path.expanduser("~/Templates")
+    os.makedirs(templates_dir, exist_ok=True)
+    template_src = os.path.join(egguf_dir, "efe_template.efe")
+    template_dst = os.path.join(templates_dir, "EFE Extension File.efe")
+    try:
+        shutil.copy2(template_src, template_dst)
+        print(f"  [OK] EFE template: {template_dst}")
+        print("       Right-click → New Document → EFE Extension File")
+    except Exception as e:
+        print(f"  [WARN] Template copy failed: {e}")
+
 
 # ═══════════════════════════════════════════════════════════
 #  macOS REGISTRATION
@@ -262,6 +319,9 @@ def _publish_macos(python_exe, egguf_dir):
     print()
     print("  For the GGUF converter:")
     print(f"     python {os.path.join(egguf_dir, 'gguf2egguf.py')} model.gguf")
+    print()
+    print("  For EFE templates in Finder:")
+    print(f"     Copy {os.path.join(egguf_dir, 'efe_template.efe')} to ~/Templates/")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,12 @@
+# === EFE: New Extension ===
+# === Author: ===
+# === Description: ===
+
+#use:Import the EGGUF extension toolkit
+from egguf_ext import params, response
+
+#use:Set temperature to 0.7 for balanced output
+params.temperature(0.7)
+
+#use:Configure response as markdown
+response.format("markdown")
