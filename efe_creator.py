@@ -109,6 +109,30 @@ EXTENSION_TEMPLATES = {
             ('{code}', ["code"]),
         ],
     },
+    "knowledge_database_file": {
+        "display": "Knowledge Database (Upload File)",
+        "lines": [
+            ('knowledge.database("{file_path}", description="{description}")', ["file_path", "description"]),
+        ],
+    },
+    "knowledge_database_inline": {
+        "display": "Knowledge Database (Inline Data)",
+        "lines": [
+            ('knowledge.inline({inline_data}, description="{description}")', ["inline_data", "description"]),
+        ],
+    },
+    "knowledge_search": {
+        "display": "Database Search Instruction",
+        "lines": [
+            ('knowledge.search_if_unknown("{instruction}")', ["instruction"]),
+        ],
+    },
+    "knowledge_embed": {
+        "display": "Embed Database as Context",
+        "lines": [
+            ('knowledge.embed_context(max_chars={max_chars})', ["max_chars"]),
+        ],
+    },
 }
 
 
@@ -272,8 +296,94 @@ class EFECreator:
             tk.Label(row, text=f"{display}:", font=("Segoe UI", 9), bg="#1a1a2e",
                      fg="#8888aa", width=18, anchor=tk.W).pack(side=tk.LEFT)
 
+            # file_path: Entry + Browse button + Preview button
+            if field == "file_path":
+                var = tk.StringVar()
+                entry = tk.Entry(row, textvariable=var, font=("Segoe UI", 9), bg="#16213e",
+                                 fg="#e0e0e0", width=35, bd=1, relief=tk.FLAT)
+                entry.pack(side=tk.LEFT, padx=5)
+                self.field_vars[field] = ("var", var)
+
+                def browse_file(v=var):
+                    fpath = filedialog.askopenfilename(
+                        title="Select Database File",
+                        filetypes=[
+                            ("JSON Files", "*.json"),
+                            ("CSV Files", "*.csv"),
+                            ("SQLite Databases", "*.db *.sqlite *.sqlite3"),
+                            ("Text Files", "*.txt *.md"),
+                            ("All Files", "*.*")
+                        ],
+                        parent=self.win
+                    )
+                    if fpath:
+                        v.set(fpath)
+
+                tk.Button(row, text="Browse...", font=("Segoe UI", 8, "bold"),
+                          bg="#0f3460", fg="#e0e0e0", width=8, cursor="hand2",
+                          command=browse_file).pack(side=tk.LEFT, padx=2)
+
+                def preview_file(v=var):
+                    fpath = v.get().strip()
+                    if not fpath or not os.path.exists(fpath):
+                        messagebox.showwarning("No File", "Select a file first.", parent=self.win)
+                        return
+                    self._show_database_preview(fpath)
+
+                tk.Button(row, text="Preview Data", font=("Segoe UI", 8),
+                          bg="#4ecca3", fg="white", width=10, cursor="hand2",
+                          command=preview_file).pack(side=tk.LEFT, padx=2)
+
+            # inline_data: large Text widget for JSON entry + Format button
+            elif field == "inline_data":
+                entry = tk.Text(row, font=("Consolas", 9), bg="#16213e", fg="#e0e0e0",
+                                width=45, height=8, bd=1, relief=tk.FLAT)
+                entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+                entry.insert("1.0", "[\n  {\"name\": \"Example\", \"value\": 1}\n]")
+                self.field_vars[field] = ("text", entry)
+
+                # Add format/validate button below
+                btn_row = tk.Frame(self.fields_container, bg="#1a1a2e")
+                btn_row.pack(fill=tk.X, padx=5, pady=2)
+
+                def validate_json(e=entry):
+                    raw = e.get("1.0", tk.END).strip()
+                    try:
+                        parsed = json.loads(raw)
+                        formatted = json.dumps(parsed, indent=2)
+                        e.delete("1.0", tk.END)
+                        e.insert("1.0", formatted)
+                        count = len(parsed) if isinstance(parsed, list) else 1
+                        messagebox.showinfo("Valid JSON",
+                            f"Valid JSON! {count} record(s) found.\nData is ready to use.",
+                            parent=self.win)
+                    except json.JSONDecodeError as ex:
+                        messagebox.showerror("Invalid JSON",
+                            f"JSON syntax error:\n{ex}",
+                            parent=self.win)
+
+                tk.Button(btn_row, text="Validate JSON", font=("Segoe UI", 8, "bold"),
+                          bg="#4ecca3", fg="white", width=12, cursor="hand2",
+                          command=validate_json).pack(side=tk.LEFT, padx=20)
+
+            # instruction: Text widget with default value
+            elif field == "instruction":
+                entry = tk.Text(row, font=("Segoe UI", 9), bg="#16213e", fg="#e0e0e0",
+                                width=45, height=3, bd=1, relief=tk.FLAT)
+                entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+                entry.insert("1.0", "Search through the AI/database if your knowledge doesn't contain the answer to the user")
+                self.field_vars[field] = ("text", entry)
+
+            # max_chars: Entry with default value
+            elif field == "max_chars":
+                var = tk.StringVar(value="8000")
+                entry = tk.Entry(row, textvariable=var, font=("Segoe UI", 9), bg="#16213e",
+                                 fg="#e0e0e0", width=45, bd=1, relief=tk.FLAT)
+                entry.pack(side=tk.LEFT, padx=5)
+                self.field_vars[field] = ("var", var)
+
             # Use Text widget for longer fields, Entry for shorter
-            if field in ("prompt", "knowledge", "template", "rules", "code"):
+            elif field in ("prompt", "knowledge", "template", "rules", "code"):
                 entry = tk.Text(row, font=("Segoe UI", 9), bg="#16213e", fg="#e0e0e0",
                                 width=45, height=3, bd=1, relief=tk.FLAT)
                 entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
@@ -295,6 +405,97 @@ class EFECreator:
         else:
             return widget.get().strip()
 
+    def _show_database_preview(self, file_path):
+        """Show a preview of the selected database file in a popup window."""
+        try:
+            ext = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
+            preview_text = ""
+
+            if ext == "json":
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, list):
+                    preview_text = f"[JSON Array] {len(data)} records\n\n"
+                    for i, record in enumerate(data[:10]):
+                        preview_text += f"Record {i+1}: {json.dumps(record, indent=0)}\n"
+                    if len(data) > 10:
+                        preview_text += f"\n... and {len(data) - 10} more records"
+                elif isinstance(data, dict):
+                    preview_text = f"[JSON Object]\n\n"
+                    for key, value in data.items():
+                        if isinstance(value, list):
+                            preview_text += f"{key}: {len(value)} items\n"
+                            for j, item in enumerate(value[:3]):
+                                preview_text += f"  {json.dumps(item, indent=0)}\n"
+                            if len(value) > 3:
+                                preview_text += f"  ... and {len(value) - 3} more\n"
+                        else:
+                            preview_text += f"{key}: {value}\n"
+                    preview_text = json.dumps(data, indent=2)[:3000]
+
+            elif ext in ("csv", "tsv"):
+                import csv
+                with open(file_path, "r", encoding="utf-8", newline="") as f:
+                    reader = csv.DictReader(f)
+                    records = list(reader)
+                preview_text = f"[CSV] {len(records)} records\n\n"
+                preview_text += "Columns: " + ", ".join(reader.fieldnames or []) + "\n\n"
+                for i, record in enumerate(records[:10]):
+                    preview_text += f"Row {i+1}: " + " | ".join(f"{k}={v}" for k, v in record.items()) + "\n"
+                if len(records) > 10:
+                    preview_text += f"\n... and {len(records) - 10} more records"
+
+            elif ext in ("db", "sqlite", "sqlite3"):
+                import sqlite3
+                conn = sqlite3.connect(file_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                tables = [r[0] for r in cursor.fetchall()]
+                preview_text = f"[SQLite] Tables: {', '.join(tables)}\n\n"
+                for table in tables:
+                    cursor.execute(f"SELECT * FROM {table} LIMIT 5")
+                    cols = [d[0] for d in cursor.description]
+                    rows = cursor.fetchall()
+                    preview_text += f"Table '{table}' ({len(cols)} columns, showing {len(rows)} rows):\n"
+                    preview_text += "  Columns: " + ", ".join(cols) + "\n"
+                    for row in rows:
+                        preview_text += f"  {dict(zip(cols, row))}\n"
+                    preview_text += "\n"
+                conn.close()
+
+            else:  # text
+                with open(file_path, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+                preview_text = f"[Text] {len(lines)} lines\n\n"
+                for i, line in enumerate(lines[:20]):
+                    preview_text += f"{i+1}: {line.rstrip()}\n"
+                if len(lines) > 20:
+                    preview_text += f"\n... and {len(lines) - 20} more lines"
+
+        except Exception as e:
+            preview_text = f"Error reading file:\n{e}"
+
+        win = tk.Toplevel(self.win)
+        win.title(f"Database Preview — {os.path.basename(file_path)}")
+        win.geometry("700x500")
+        win.configure(bg="#1a1a2e")
+
+        header = tk.Frame(win, bg="#16213e", height=40)
+        header.pack(fill=tk.X)
+        header.pack_propagate(False)
+        tk.Label(header, text=f"📊 {os.path.basename(file_path)}", font=("Segoe UI", 11, "bold"),
+                 bg="#16213e", fg="#4ecca3").pack(side=tk.LEFT, padx=15, pady=8)
+
+        text = tk.Text(win, font=("Consolas", 9), bg="#16213e", fg="#e0e0e0",
+                       wrap=tk.WORD, bd=0, padx=15, pady=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert("1.0", preview_text)
+        text.config(state=tk.DISABLED)
+
+        tk.Button(win, text="Close", font=("Segoe UI", 10),
+                  bg="#0f3460", fg="#e0e0e0", width=12, cursor="hand2",
+                  command=win.destroy).pack(pady=10)
+
     def _add_line(self):
         """Add a code line with #use: annotation."""
         display_name = self.type_var.get()
@@ -312,7 +513,7 @@ class EFECreator:
         # Generate code lines from templates
         for code_template, field_names in template_info["lines"]:
             # Skip if required fields are empty
-            required = [f for f in field_names if f not in ("persona_name", "schema", "name", "topic", "priority", "scale", "rules", "tokens")]
+            required = [f for f in field_names if f not in ("persona_name", "schema", "name", "topic", "priority", "scale", "rules", "tokens", "description", "instruction", "max_chars")]
             if any(not values.get(f) for f in required):
                 continue
 
@@ -326,11 +527,17 @@ class EFECreator:
                         # Convert multiline to Python list
                         items = [line.strip() for line in v.split("\n") if line.strip()]
                         filled_values[f] = ", ".join(f'"{item}"' for item in items)
-                    elif f in ("temperature", "top_p", "top_k", "max_new_tokens", "max_tokens", "scale"):
+                    elif f in ("temperature", "top_p", "top_k", "max_new_tokens", "max_tokens", "scale", "max_chars"):
                         try:
                             filled_values[f] = str(float(v)) if "." in v else str(int(v))
                         except ValueError:
                             filled_values[f] = v
+                    elif f == "inline_data":
+                        # Use raw JSON data, don't wrap in quotes
+                        filled_values[f] = v
+                    elif f == "file_path":
+                        # Escape backslashes in file paths
+                        filled_values[f] = v.replace('\\', '/').replace('"', '\\"')
                     else:
                         filled_values[f] = v.replace('"', '\\"')
                 code = code_template.format(**filled_values)
