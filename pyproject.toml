@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "egguf"
+version = "0.1.0"
+description = "EGGUF - Extensible GGUF System: Modular AI Skills Framework"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "EGGUF Contributors"}
+]
+keywords = ["ai", "llm", "gguf", "modular", "skills", "extensible"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "requests>=2.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black>=23.0",
+    "flake8>=6.0",
+]
+
+[project.scripts]
+egguf = "egguf:main"
+egguf-vid = "egguf.video:main_cli"
+egguf-img = "egguf.image:main_cli"
+egguf-agent = "egguf.agent:main_cli"
+egguf-test = "test_egguf:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["egguf*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
