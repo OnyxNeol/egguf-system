@@ -1,4 +1,9 @@
-# Dependencies (all standard library — no pip install needed for core functionality)
-# PyInstaller is only needed to build executables:
-#   pip install pyinstaller
-pyinstaller>=6.0
+# EGGUF Library Dependencies
+# Core dependencies
+requests>=2.28.0
+pyyaml>=6.0
+
+# Development dependencies
+pytest>=7.0.0
+black>=23.0.0
+flake8>=6.0.0
